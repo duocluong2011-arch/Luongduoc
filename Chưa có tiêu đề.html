@@ -1,0 +1,143 @@
+<!doctype html>
+
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Giải Đố 20 Câu</title>
+<style>
+:root{--bg:#071028;--card:#071824;--accent:#06b6d4;--muted:#94a3b8}
+body{font-family:Inter,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(180deg,#071029,#071a2a);color:#e6eef6;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.app{width:900px;max-width:100%;background:rgba(255,255,255,0.03);border-radius:12px;padding:20px;box-shadow:0 8px 30px rgba(2,6,23,0.6)}
+#score{position:fixed;left:16px;top:16px;background:var(--card);padding:8px 12px;border-radius:8px;box-shadow:0 4px 14px rgba(2,6,23,0.5)}
+#score strong{display:block;font-size:18px}
+.question{font-size:18px;margin-bottom:10px}
+input{padding:8px;border-radius:6px;border:none;width:100%;margin-bottom:10px;background:rgba(255,255,255,0.05);color:white}
+button{padding:8px 12px;border:none;border-radius:6px;cursor:pointer;margin-right:6px;background:var(--accent);color:#04202a}
+button.secondary{background:transparent;border:1px solid rgba(255,255,255,0.1);color:var(--muted)}
+.hint{color:#bfeaf7;margin-top:6px}
+.hidden{display:none}
+.correct{color:#6ee7b7;margin-top:6px}
+.wrong{color:#fca5a5;margin-top:6px}
+#finishMsg{margin-top:12px;font-size:16px;font-weight:bold}
+.confetti{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;}
+</style>
+</head>
+<body>
+<div id="score"><strong>Điểm vòng: <span id="scoreVal">0</span></strong><br>Tổng: <span id="totalVal">0</span><br><button id="buyAcc" style="margin-top:6px;background:#ffb703;color:#04202a;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;width:100%;">Đổi acc lv5</button><button id="buyPoints" style="margin-top:6px;background:#d97706;color:#04202a;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;width:100%;">Mua điểm</button></div>
+<button id="dailyBtn" style="margin-top:6px;background:#06b6d4;color:#04202a;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;width:100%;">Điểm danh +100</button>
+<div class="app">
+<div id="quiz"></div>
+<div id="controls">
+<input id="answer" placeholder="Nhập câu trả lời..." />
+<button id="submit">Trả lời</button>
+<button id="hint" class="secondary">Gợi ý (-2đ)</button>
+</div>
+<div id="feedback"></div>
+<div id="finishSection" class="hidden">
+<p id="finishMsg"></p>
+<button id="check">Check điểm</button>
+<button id="nextRound">Kiếm điểm (bộ câu 20 mới)</button>
+</div>
+</div>
+<script>
+let totalScore = 0;
+let score = 0;
+let current = 0;
+const riddles = [
+{q:"Con gì kêu meo meo?", a:"mèo", h:"Thú nuôi phổ biến"},
+{q:"Cái gì có 4 chân mà không biết đi?", a:"cái bàn", h:"Đồ nội thất"},
+{q:"Trái gì màu đỏ, ăn vào chua ngọt?", a:"táo", h:"Quả phổ biến"},
+{q:"Cái gì càng rửa càng bẩn?", a:"nước", h:"Chất lỏng"},
+{q:"Con gì biết gáy vào buổi sáng?", a:"gà", h:"Trang trại"},
+{q:"Cái gì bay không có cánh?", a:"thời gian", h:"Trừu tượng"},
+{q:"Cái gì trắng như bông mà không phải bông?", a:"mây", h:"Trên trời"},
+{q:"Con gì sống dưới nước mà không biết bơi?", a:"sứa", h:"Biển"},
+{q:"Cái gì có cổ mà không có đầu?", a:"chai", h:"Đựng nước"},
+{q:"Con gì có vòi dài?", a:"voi", h:"Rất to"},
+{q:"Cái gì càng nóng càng lạnh?", a:"tủ lạnh", h:"Điện gia dụng"},
+{q:"Cái gì lúc trẻ màu xanh, lúc già màu vàng?", a:"lá", h:"Cây"},
+{q:"Loài gì kêu ụt ịt?", a:"heo", h:"Nông trại"},
+{q:"Cái gì to bằng cái vung?", a:"mặt trời", h:"Trên trời"},
+{q:"Thứ gì càng kéo càng ngắn?", a:"thuốc lá", h:"Không tốt cho sức khỏe"},
+{q:"Cái gì mở ra không đóng lại được?", a:"lòng tin", h:"Trừu tượng"},
+{q:"Cái gì mềm lúc ướt và cứng lúc khô?", a:"khăn", h:"Phòng tắm"},
+{q:"Cái gì có nhiều chìa nhưng không mở được cửa?", a:"đàn piano", h:"Âm nhạc"},
+{q:"Cái gì luôn ở phía trước mà không bao giờ thấy được?", a:"tương lai", h:"Thời gian"},
+{q:"Cái gì càng ăn càng khát?", a:"muối", h:"Gia vị"}
+];
+let quiz = [];
+function shuffle(arr){return arr.sort(()=>Math.random()-0.5)}
+function newRound(){quiz = shuffle([...riddles]).slice(0,20);current=0;score=0;updateUI()}
+function updateUI(){document.getElementById('quiz').innerHTML=`<div class='question'>Câu ${current+1}/20: ${quiz[current].q}</div>`}
+function answer(){let inp=document.getElementById('answer').value.trim().toLowerCase();if(!inp)return;if(inp===quiz[current].a){score+=5;totalScore+=5;document.getElementById('feedback').innerHTML='<div class="correct">Đúng!</div>';}else{document.getElementById('feedback').innerHTML='<div class="wrong">Sai!</div>';}document.getElementById('scoreVal').innerText=score;document.getElementById('totalVal').innerText=totalScore;current++;document.getElementById('answer').value='';if(current<20){updateUI()}else{finish()}}
+function hint(){score=Math.max(score-2,0);totalScore=Math.max(totalScore-2,0);document.getElementById('scoreVal').innerText=score;document.getElementById('totalVal').innerText=totalScore;document.getElementById('feedback').innerHTML='<div class="hint">Gợi ý: '+quiz[current].h+'</div>'}
+function finish(){document.getElementById('quiz').innerHTML='Đã trả lời xong 20 câu!';document.getElementById('controls').classList.add('hidden');document.getElementById('finishSection').classList.remove('hidden');document.getElementById('finishMsg').innerText=(score>=100?"100 điểm = 1 acc lv5":"Hoàn thành!");if(totalScore>=1000)alert('Đủ 1000 điểm có thể đổi 1 acc lv5!')}
+document.getElementById('submit').onclick=answer;
+document.getElementById('buyAcc').onclick = ()=>{
+  if(totalScore < 1000) alert('mày đéo có đủ điểm');
+  else alert('Hãy liên hệ admin Zalo 775665910 để nhận acc');
+};
+document.getElementById('buyPoints').onclick = ()=>{
+  alert('Mua 10 điểm = mất 5 điểm');
+  if(totalScore >= 5){ totalScore = totalScore - 5 + 10; document.getElementById('totalVal').innerText = totalScore; }
+  else alert('Không đủ điểm để mua!');
+};
+document.getElementById('hint').onclick=hint;
+document.getElementById('check').onclick=()=>alert('Check thành công!');
+document.getElementById('nextRound').onclick=()=>{document.getElementById('controls').classList.remove('hidden');document.getElementById('finishSection').classList.add('hidden');newRound()};
+newRound();
+// Daily reward
+let lastClaim = localStorage.getItem('dailyDate');
+let serverDate = null;
+fetch('https://worldtimeapi.org/api/ip').then(r=>r.json()).then(d=>{serverDate = d.datetime.slice(0,10); checkDaily();});
+function checkDaily(){
+  let today = serverDate;
+  if(lastClaim === today){ document.getElementById('dailyBtn').disabled = true; document.getElementById('dailyBtn').innerText='Đã điểm danh'; }
+}
+document.getElementById('dailyBtn').onclick = ()=>{
+  let today = serverDate;
+  if(lastClaim === today) return;
+  totalScore += 100;
+  document.getElementById('totalVal').innerText = totalScore;
+  localStorage.setItem('dailyDate', today);
+  lastClaim = today;
+  document.getElementById('dailyBtn').disabled = true;
+  document.getElementById('dailyBtn').innerText='Đã nhận +100';
+  playConfetti();
+};
+// Mua điểm
+document.getElementById('buyPoints').onclick = ()=>{
+  if(totalScore < 5){ alert('mày đéo có đủ điểm để mua'); return; }
+  totalScore = totalScore - 5 + 20;
+  document.getElementById('totalVal').innerText = totalScore;
+  alert('Mua thành công: +20 điểm (trừ 5)');
+};
+// Confetti effect
+function playConfetti(){
+  const canvas=document.createElement('canvas');
+  canvas.className='confetti';
+  document.body.appendChild(canvas);
+  const ctx=canvas.getContext('2d');
+  canvas.width=window.innerWidth;
+  canvas.height=window.innerHeight;
+  let particles=[];
+  for(let i=0;i<150;i++){
+    particles.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,dx:(Math.random()-0.5)*4,dy:(Math.random()*5)+1,size:Math.random()*6+2});
+  }
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    particles.forEach(p=>{
+      ctx.fillStyle='hsl('+(Math.random()*360)+',100%,70%)';
+      ctx.fillRect(p.x,p.y,p.size,p.size);
+      p.x+=p.dx;p.y+=p.dy;
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+  setTimeout(()=>canvas.remove(),2000);
+}
+checkDaily();
+</script>
+</body>
+</html>
